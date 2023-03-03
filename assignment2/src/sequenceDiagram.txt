@@ -1,0 +1,33 @@
+title ServerHostClient
+loop for int i=0; i<11;i++
+Server->Server:new DatagramSocket(69,InetAddress.getLocalHost())
+Host->Host: new DatagramSocket()
+Host->Host: new DatagramSocket(23,InetAddress.getLocalHost())
+Client->Client: new DatagramSocket()
+Client->Client: create request format
+Client->Client:new DatagramPacket(req,req.length,InetAddress.getLocalHost(),23);
+parallel
+
+Client->Host:send request packet to Host
+Host-->Host:receive request packet from Client
+parallel off
+parallel
+
+Host->Server:send request packet to Server
+Server-->Server:receive request packet from Host
+parallel off
+Server->Server:validate request packet
+parallel
+
+Server->Host:send response packet to Host
+Host-->Host:receive response packet from Server
+parallel off
+
+parallel
+
+Host->Client:send response packet to Client
+Client-->Client:receive response packet from Host
+parallel off
+
+Client->Client:Close Socket
+end
