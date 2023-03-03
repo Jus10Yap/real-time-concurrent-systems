@@ -16,16 +16,12 @@ import java.net.UnknownHostException;
  */
 public class Host {
 
-	private DatagramSocket clientServerSocket; // socket to receive data from client
-    private DatagramSocket serverClientSocket; // socket to send data to client
-    private DatagramSocket serverIntermediateSocket; // socket to receive data from server
-    private DatagramSocket intermediateServerSocket; // socket to send data to server
-    
-    private static int CLIENT_SERVER_PORT = 23; // port used for socket to receive data from client
-    private static int SERVER_INTERMEDIATE_PORT = 69; // port used for socket to receive data from server
-    private static int INTERMEDIATE_SERVER_PORT = 68; // port used for socket to send data to server
-    private static int SERVER_CLIENT_PORT = 70; // port used for socket to send data to client
-	    
+	private DatagramSocket sendSocket, receiveSocket; // send and receive sockets
+	private DatagramPacket sendPacket, receivePacket; // send and receive packets
+
+	private static int RECEIVE_PORT_CLIENT_TO_HOST = 23; // port used for socket to receive from client
+	private static int RECEIVE_PORT_SERVER_TO_HOST = 24; // port used for socket to receive from server
+	private static int SEND_RECEIVE_PORT = 69; // port used for packet to send and receive
 
 	/*
 	 * host constructor
@@ -34,15 +30,16 @@ public class Host {
 	 */
 	public Host() {
 		// create sockets
-        try {
-            clientServerSocket = new DatagramSocket(CLIENT_SERVER_PORT);
-            serverClientSocket = new DatagramSocket();
-            serverIntermediateSocket = new DatagramSocket(SERVER_INTERMEDIATE_PORT);
-            intermediateServerSocket = new DatagramSocket();
-        } catch (SocketException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
+		try {
+			sendSocket = new DatagramSocket();
+			receiveSocket = new DatagramSocket(RECEIVE_PORT_CLIENT_TO_HOST, InetAddress.getLocalHost());
+		} catch (SocketException e) {
+			e.printStackTrace();
+			System.exit(1);
+		} catch (UnknownHostException h) {
+			h.printStackTrace();
+			System.exit(1);
+		}
 	}
 
 	/*
@@ -52,56 +49,79 @@ public class Host {
 
 	private void run() {
 		byte[] data = new byte[100];
-        DatagramPacket clientRequestPacket = new DatagramPacket(data, data.length);
-        // receive packet from client
-        try {
-            clientServerSocket.receive(clientRequestPacket);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        InetAddress clientAddress = clientRequestPacket.getAddress();
-        int clientPort = clientRequestPacket.getPort();
-        System.out.println("[Intermediate] Received (byte) request from client: " + clientRequestPacket.getData());
-        System.out.println("[Intermediate] Received (String) request from client: " + new String(data));
-        
-        // send packet to the server
-        try {
-            DatagramPacket serverRequestPacket = new DatagramPacket(clientRequestPacket.getData(), clientRequestPacket.getLength(),
-                    InetAddress.getLocalHost(), INTERMEDIATE_SERVER_PORT);
-            intermediateServerSocket.send(serverRequestPacket);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        System.out.println("[Intermediate] Sent request to server!");
-        
-        byte[] responseData = new byte[500];
-        DatagramPacket serverResponsePacket = new DatagramPacket(responseData, responseData.length);
-        // receive packet from server
-        try {
-            serverIntermediateSocket.receive(serverResponsePacket);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        System.out.println("[Intermediate] Received (byte) response from server: " + serverResponsePacket.getData());
-        System.out.println("[Intermediate] Received (String) response from server: " + new String(responseData));
-        
-        // send packet to the client
-        DatagramPacket clientResponsePacket = new DatagramPacket(serverResponsePacket.getData(), serverResponsePacket.getLength(), clientAddress, clientPort);
-        try {
-            serverClientSocket.send(clientResponsePacket);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        System.out.println("[Intermediate] Sent response to Client");
+		receivePacket = new DatagramPacket(data, data.length);
+		// receiving packet from client
+		try {
+			receiveSocket.receive(receivePacket);
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+		InetAddress address = receivePacket.getAddress();
+		int clientPort = receivePacket.getPort();
+
+		System.out.println("[Host] Received (byte) request from client: " + receivePacket.getData());
+		System.out.println("[Host] Received (String) request from client: " + new String(data));
+
+		// sending packet to the server
+		byte[] requestData = receivePacket.getData();
+		byte[] responseData = new byte[500];
+		try {
+			rpc_send(requestData, responseData, InetAddress.getLocalHost(), SEND_RECEIVE_PORT, RECEIVE_PORT_SERVER_TO_HOST);
+		} catch (UnknownHostException e2) {
+			e2.printStackTrace();
+			System.exit(1);
+		}
+
+		System.out.println("[Host] Received (byte) request from server: " + responseData);
+		System.out.println("[Host] Received (String) request from server: " + new String(responseData));
+
+		// sending packet to the client
+		sendPacket = new DatagramPacket(responseData, responseData.length, address, clientPort);
+
+		try {
+			sendSocket.send(sendPacket);
+		} catch (SocketException e1) {
+			e1.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		System.out.println("[Host] Sent response to client!");
 
 	}
 
+	/*
+	 * Method that sends the request to the server and receives the response
+	 */
+	private void rpc_send(byte[] requestData, byte[] responseData, InetAddress address, int sendPort, int receivePort) {
+		sendPacket = new DatagramPacket(requestData, requestData.length, address, sendPort);
+		try {
+			sendSocket.send(sendPacket);
+		} catch (SocketException e1) {
+			e1.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		receivePacket = new DatagramPacket(responseData, responseData.length);
+
+		try {
+			receiveSocket.receive(receivePacket);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		System.out.println("[Host] Received (byte) response from server: " + receivePacket.getData());
+		System.out.println("[Host] Received (String) response from server: " + new String(responseData));
+
+	}
+
+	/*
+	 * main method to execute
+	 */
 	public static void main(String[] args) {
-	    Host host = new Host();
-	    System.out.println("[Intermediate] Host started!");
-	    while (true) {
-	        host.run(); // run the host
-	    }
+		Host host = new Host();
+		while (true) {
+			host.run();
+		}
 	}
-
 }

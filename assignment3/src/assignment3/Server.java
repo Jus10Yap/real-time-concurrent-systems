@@ -37,6 +37,32 @@ public class Server {
 			System.exit(1);
 		}
 	}
+	
+	/**
+     * Function to send a packet to a specified address and port.
+     * 
+     * @param data The data to be sent
+     * @param address The destination IP address
+     * @param port The destination port number
+     * @throws IOException if an I/O error occurs
+     */
+    private void rpc_send(byte[] data, InetAddress address, int port) throws IOException {
+        try {
+			receiveSocket= new DatagramSocket();
+			sendPacket = new DatagramPacket(data, data.length, address, port);
+			receiveSocket.send(sendPacket);
+			 System.out.println("[Server] Sent (String) response: " + new String(sendPacket.getData()));
+		} catch (SocketException e) {
+			
+			e.printStackTrace();
+		} catch (IOException e) {
+			
+			e.printStackTrace();
+		}
+       
+        //sendSocket.close();
+    }
+
 
 	/*
 	 * run function
@@ -59,7 +85,7 @@ public class Server {
 		if (req[0] != 0) {
 			throw new Exception("[Server] this filename request format is invalid!");
 		}
-		if (req[1] != 1 && req[1] != 2) {
+		if (req[1] != 2) {
 			throw new Exception("[Server] this filename request format is invalid!");
 		}
 
@@ -88,38 +114,23 @@ public class Server {
 			throw new Exception("[Server] this filename request format is invalid!");
 		}
 
-		System.out.println("[Server] Received (String) request: " + new String(req));
-		System.out.println("[Server] Received (byte) request: " + req);
+		System.out.println("[Server] Received Write(String) request: " + new String(req));
+		System.out.println("[Server] Received Write(byte) request: " + req);
 
 		// preparing the response
 		byte[] res = new byte[4];
 		res[0] = 0;
-		if (req[1] == 1) {// 301 for read
-			res[1] = 3;
-			res[2] = 0;
-			res[3] = 1;
-		} else {// 400 for write
-			res[1] = 4;
-			res[2] = 0;
-			res[3] = 0;
-		}
-
-		// send the response back to host
-		DatagramSocket sendSocket = new DatagramSocket();
+		res[1] = 4;
+		res[2] = 0;
+		res[3] = 0;
+		System.out.println("[Server] Sending (byte) response: " + Arrays.toString(res));
+		// sending the response to the host
 		InetAddress address = receivePacket.getAddress();
 		int port = receivePacket.getPort();
+	    rpc_send(res, address, port);
 
-		try {
-			sendPacket = new DatagramPacket(res, res.length, address, port);
-			sendSocket.send(sendPacket);
-			sendSocket.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		System.out.println("[Server] Sending (String) response: " + new String(res));
-		System.out.println("[Server] Sending (byte) response: " + Arrays.toString(res));
+		
+		
 		System.out.println();
 
 	}
@@ -127,11 +138,14 @@ public class Server {
 	/*
 	 * main function
 	 * 
+	 * creates a new instance of Server and runs the run function
 	 */
-	public static void main(String[] args) throws Exception {
-		Server server = new Server();
-		while (true) {
-			server.run();
-		}
+	public static void main(String[] args) {
+	    Server server = new Server();
+	    try {
+	        server.run();
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	    }
 	}
-}
+	}
