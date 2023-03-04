@@ -24,9 +24,7 @@ public class Host extends UDPEntity implements Runnable {
 
 	private byte[] req; // request received from Client
 	private byte[] res; // response from Server
-	
-	 private boolean clientRequestReceived = false;
-	 private boolean serverRequestReceived = false;
+
 	/*
 	 * host constructor
 	 * 
@@ -44,10 +42,9 @@ public class Host extends UDPEntity implements Runnable {
 	}
 
 	public synchronized void handleClient() {
-	
+
 		req = receiveData();
 		// receiving request from client
-		InetAddress address = getReceivePacket().getAddress();
 		int clientPort = getReceivePacket().getPort();
 		System.out.println(getReceivePacket().getPort());
 		System.out.println(getReceivePacket().getAddress());
@@ -60,13 +57,9 @@ public class Host extends UDPEntity implements Runnable {
 		System.out.println("[Host] Acknowledging Request from client");
 		sendData(clientPort);
 
-		
-		// Set client request received flag to true
-        clientRequestReceived = true;
-        serverRequestReceived = false;
 		// If there is no reply from the server yet, wait
 		System.out.println("[Host] Waiting for Server Data Request");
-		while (!serverRequestReceived) {
+		while (res == null) {
 			try {
 				wait();
 			} catch (InterruptedException e) {
@@ -77,8 +70,8 @@ public class Host extends UDPEntity implements Runnable {
 
 		// Send reply to client from server
 		System.out.println("[Host] Sending for Server processed response to client");
-		sendData(res,clientPort);
-		
+		sendData(res, clientPort);
+
 		res = null;
 	}
 
@@ -86,17 +79,13 @@ public class Host extends UDPEntity implements Runnable {
 		// Receive data request from the server
 		byte[] data = receiveData(serverReceiveSocket);
 		// receiving request from client
-		
 
 		System.out.println("[Host] Received Byte request from server: " + data);
 		System.out.println("[Host] Received String request from server: " + new String(data));
-		
-		// Set server request received flag to true
-        clientRequestReceived = false;
-        serverRequestReceived = true;
+
 		// If there is no request from the client yet, wait
 		System.out.println("[Host] Waiting for Client  Request");
-		while (!clientRequestReceived) {
+		while (req == null) {
 			try {
 				wait();
 			} catch (InterruptedException e) {
@@ -112,18 +101,15 @@ public class Host extends UDPEntity implements Runnable {
 		System.out.println("[Host] Sending Byte request to server: " + getSendPacket().getData());
 		System.out.println("[Host] Sending String Request to server: " + new String(getSendPacket().getData()));
 
-
 		req = null;
 
 		// Receive reply from server
-		
+
 		res = receiveData(serverReceiveSocket);
 		notifyAll();
 
 		System.out.println("[Host] Received Byte reply from server: " + res);
 		System.out.println("[Host] Received String reply from server: " + new String(res));
-
-		
 
 		// Notify server that reply has been received
 		System.out.println("[Host] Acknowledging Request from Server");
@@ -133,27 +119,24 @@ public class Host extends UDPEntity implements Runnable {
 	/*
 	 * main method to execute
 	 */
-	public static void main(String[] args) throws UnknownHostException, IOException {
+	public static void main(String[] args) {
 		Host host = new Host();
 		Thread client = new Thread(host, "Client");
 		client.start();
-		
+
 		while (true) {
-		
-			
+
 			host.handleServer();
-			
-	
+
 		}
 	}
 
 	@Override
 	public void run() {
 		while (true) {
-		
+
 			handleClient();
-				
-			
+
 		}
 
 	}
