@@ -14,114 +14,147 @@ import java.net.UnknownHostException;
  *
  *         Class for Host that sends requests on to the server/client
  */
-public class Host {
+public class Host extends UDPEntity implements Runnable {
 
-	private DatagramSocket sendSocket, receiveSocket; // send and receive sockets
-	private DatagramPacket sendPacket, receivePacket; // send and receive packets
+	private DatagramSocket serverReceiveSocket; // send and receive sockets
 
-	private static int RECEIVE_PORT_CLIENT_TO_HOST = 23; // port used for socket to receive from client
-	private static int RECEIVE_PORT_SERVER_TO_HOST = 24; // port used for socket to receive from server
-	private static int SEND_RECEIVE_PORT = 69; // port used for packet to send and receive
+	private static int RECEIVE_PORT_CLIENT = 23; // port used for socket to receive from client
+	private static int RECEIVE_PORT_SERVER = 24; // port used for socket to receive from server
+	private static int SEND_PORT_SERVER = 69; // port used for packet to send from server
 
+	private byte[] req; // request received from Client
+	private byte[] res; // response from Server
+	
+	 private boolean clientRequestReceived = false;
+	 private boolean serverRequestReceived = false;
 	/*
 	 * host constructor
 	 * 
 	 * making sure send and receive sockets were created successfully
 	 */
 	public Host() {
-		// create sockets
+		super(RECEIVE_PORT_CLIENT);
 		try {
-			sendSocket = new DatagramSocket();
-			receiveSocket = new DatagramSocket(RECEIVE_PORT_CLIENT_TO_HOST, InetAddress.getLocalHost());
+			serverReceiveSocket = new DatagramSocket(RECEIVE_PORT_SERVER);
+			System.out.println("[Host] Created sockets");
 		} catch (SocketException e) {
 			e.printStackTrace();
 			System.exit(1);
-		} catch (UnknownHostException h) {
-			h.printStackTrace();
-			System.exit(1);
 		}
 	}
 
-	/*
-	 * Receive packet from Client Send packet to the Server Receive packet from
-	 * Server Send packet to the Client
-	 */
+	public synchronized void handleClient() {
+	
+		req = receiveData();
+		// receiving request from client
+		InetAddress address = getReceivePacket().getAddress();
+		int clientPort = getReceivePacket().getPort();
+		System.out.println(getReceivePacket().getPort());
+		System.out.println(getReceivePacket().getAddress());
+		System.out.println("[Host] Received Byte request from client: " + req);
+		System.out.println("[Host] Received String request from client: " + new String(req));
 
-	private void run() {
-		byte[] data = new byte[100];
-		receivePacket = new DatagramPacket(data, data.length);
-		// receiving packet from client
-		try {
-			receiveSocket.receive(receivePacket);
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(1);
+		notifyAll();
+
+		// Notify client that request has been received
+		System.out.println("[Host] Acknowledging Request from client");
+		sendData(clientPort);
+
+		
+		// Set client request received flag to true
+        clientRequestReceived = true;
+        serverRequestReceived = false;
+		// If there is no reply from the server yet, wait
+		System.out.println("[Host] Waiting for Server Data Request");
+		while (!serverRequestReceived) {
+			try {
+				wait();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				System.exit(1);
+			}
 		}
-		InetAddress address = receivePacket.getAddress();
-		int clientPort = receivePacket.getPort();
 
-		System.out.println("[Host] Received (byte) request from client: " + receivePacket.getData());
-		System.out.println("[Host] Received (String) request from client: " + new String(data));
-
-		// sending packet to the server
-		byte[] requestData = receivePacket.getData();
-		byte[] responseData = new byte[500];
-		try {
-			rpc_send(requestData, responseData, InetAddress.getLocalHost(), SEND_RECEIVE_PORT, RECEIVE_PORT_SERVER_TO_HOST);
-		} catch (UnknownHostException e2) {
-			e2.printStackTrace();
-			System.exit(1);
-		}
-
-		System.out.println("[Host] Received (byte) request from server: " + responseData);
-		System.out.println("[Host] Received (String) request from server: " + new String(responseData));
-
-		// sending packet to the client
-		sendPacket = new DatagramPacket(responseData, responseData.length, address, clientPort);
-
-		try {
-			sendSocket.send(sendPacket);
-		} catch (SocketException e1) {
-			e1.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		System.out.println("[Host] Sent response to client!");
-
+		// Send reply to client from server
+		System.out.println("[Host] Sending for Server processed response to client");
+		sendData(res,clientPort);
+		
+		res = null;
 	}
 
-	/*
-	 * Method that sends the request to the server and receives the response
-	 */
-	private void rpc_send(byte[] requestData, byte[] responseData, InetAddress address, int sendPort, int receivePort) {
-		sendPacket = new DatagramPacket(requestData, requestData.length, address, sendPort);
-		try {
-			sendSocket.send(sendPacket);
-		} catch (SocketException e1) {
-			e1.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
+	public synchronized void handleServer() {
+		// Receive data request from the server
+		byte[] data = receiveData(serverReceiveSocket);
+		// receiving request from client
+		
+
+		System.out.println("[Host] Received Byte request from server: " + data);
+		System.out.println("[Host] Received String request from server: " + new String(data));
+		
+		// Set server request received flag to true
+        clientRequestReceived = false;
+        serverRequestReceived = true;
+		// If there is no request from the client yet, wait
+		System.out.println("[Host] Waiting for Client  Request");
+		while (!clientRequestReceived) {
+			try {
+				wait();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				System.exit(1);
+			}
 		}
-		receivePacket = new DatagramPacket(responseData, responseData.length);
 
-		try {
-			receiveSocket.receive(receivePacket);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		// Send client's request to server
+		System.out.println("[Host] Sending client request to server");
+		sendData(req, SEND_PORT_SERVER);
 
-		System.out.println("[Host] Received (byte) response from server: " + receivePacket.getData());
-		System.out.println("[Host] Received (String) response from server: " + new String(responseData));
+		System.out.println("[Host] Sending Byte request to server: " + getSendPacket().getData());
+		System.out.println("[Host] Sending String Request to server: " + new String(getSendPacket().getData()));
 
+
+		req = null;
+
+		// Receive reply from server
+		
+		res = receiveData(serverReceiveSocket);
+		notifyAll();
+
+		System.out.println("[Host] Received Byte reply from server: " + res);
+		System.out.println("[Host] Received String reply from server: " + new String(res));
+
+		
+
+		// Notify server that reply has been received
+		System.out.println("[Host] Acknowledging Request from Server");
+		sendData(SEND_PORT_SERVER);
 	}
 
 	/*
 	 * main method to execute
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws UnknownHostException, IOException {
 		Host host = new Host();
+		Thread client = new Thread(host, "Client");
+		client.start();
+		
 		while (true) {
-			host.run();
+		
+			
+			host.handleServer();
+			
+	
 		}
+	}
+
+	@Override
+	public void run() {
+		while (true) {
+		
+			handleClient();
+				
+			
+		}
+
 	}
 }

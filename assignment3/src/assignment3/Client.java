@@ -15,164 +15,124 @@ import java.util.Arrays;
  *
  *         Class for Client that sends requests to the intermediate host
  */
-public class Client {
+public class Client extends UDPEntity {
 
-	private DatagramSocket socket;// datagram socket to use to both send and receive
-	private DatagramPacket send, receive;// datagram packet either a "read request" or a "write request"
 	private final static int PORT = 23;// sends packet to this port
 	private final String filename = "test.txt";// filename to be sent to server
 	private final String mode = "octet";// type of mode request to be sent to server
-
+	private final static int MAX_REQUESTS = 11; // maximum number of requests/data/packets client can send to host
 	/*
 	 * client constructor
 	 * 
-	 * making sure socket creation is successful
 	 */
 	public Client() {
-		try {
-			socket = new DatagramSocket();
-		} catch (SocketException e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
-	}
-
-	/*
-	 * sends a read request to the server via the Intermediate task using
-	 * synchronous RPCs
-	 * 
-	 * @param x - accounts whether request is a read or write request
-	 */
-	private byte[] createRequest(int x) {
-
-		// create the request
-		byte[] filenameBytes = filename.getBytes();
-		byte[] modeBytes = mode.getBytes();
-
-		// allocate request size
-		byte[] req = new byte[4 + filenameBytes.length + modeBytes.length];
-
-		// formatting request
-		req[0] = 0;
-		req[1] = 2;
-
-		// adding the filename in bytes to request
-		for (int i = 0; i < filenameBytes.length; i++) {
-			req[2 + i] = filenameBytes[i];
-		}
-
-		// 0 byte after filename
-		req[2 + filenameBytes.length] = 0;
-
-		// adding the mode in bytes to request
-		for (int j = 0; j < modeBytes.length; j++) {
-			req[3 + filenameBytes.length + j] = modeBytes[j];
-		}
-
-		// 0 byte after mode bytes
-		req[3 + filenameBytes.length + modeBytes.length] = 0;
-
-		System.out.println("[Client] Sending write request: " + req);
-
-		// send the request to the Intermediate task via RPC
-		byte[] result = rpc_send(req);
-
-		System.out.println("[Client] Received write response: " + result);
-
-		return result;
-	}
-
-	/*
-	 * sends a write request to the server via the Intermediate task using
-	 * synchronous RPCs
-	 */
-	private byte[] receiveResponse() {
-		// creating receive packet
-		byte[] res = new byte[100];
-		receive = new DatagramPacket(res, res.length);
-		// receiving response from server
-		try {
-			// wait to receive data from the server
-			socket.receive(receive);
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
-
-		System.out.println("[Client] Byte Response: " + receive.getData());
-		System.out.println("[Client] String Response: " + new String(res));
-
-		return res;
-
-	}
-
-	/*
-	 * sends a request to the Intermediate task via RPC
-	 * 
-	 * @param req - the request to be sent
-	 */
-	private byte[] rpc_send(byte[] req) {
-
-		// send the request to the Intermediate task
-		try {
-			send = new DatagramPacket(req, req.length, InetAddress.getLocalHost(), PORT);
-		} catch (UnknownHostException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		try {
-			socket.send(send);
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
-		System.out.println("[Client] String Write Request: " + new String(send.getData(), 0, send.getLength()));
-
-		// receive the response from the Intermediate task
-		byte[] res = new byte[100];
-		receive = new DatagramPacket(res, res.length);
-		try {
-			socket.receive(receive);
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
-
-		// return the response
-		byte[] response = Arrays.copyOfRange(receive.getData(), 0, receive.getLength());
-		return response;
-	}
-
-	/*
-	 * closes client datagram socket
-	 */
-	private void closeSocket() {
-		socket.close();
-		System.out.println("[Client] Socket closed!");
+		super();
 	}
 
 	/**
-	 * main func
+	 * Creates and formats the request then sends the request to the server.
+	 * 
+	 * @param x the type of request: even number for read, odd for write,
+	 *          MAX_REQUESTS for invalid.
+	 * 
+	 */
+	private byte[] createRequest(int x) {
+		// create the request
+		byte[] filenameBytes = filename.getBytes();
+		byte[] modeBytes = mode.getBytes();
+		int reqLength = 4 + filenameBytes.length + modeBytes.length;
+
+		// allocating request size
+		byte[] req = new byte[reqLength];
+
+		// alternate between the read and write requests
+
+		// formatting request
+		if (x == MAX_REQUESTS) {// invalid request
+			req[0] = 0;
+			req[1] = 4;
+
+			// adding the filename in bytes to request
+			for (int i = 0; i < filenameBytes.length; i++) {
+				req[2 + i] = filenameBytes[i];
+			}
+
+			// 0 byte after filename
+			req[2 + filenameBytes.length] = 1;
+
+			// adding the mode in bytes to request
+			for (int j = 0; j < modeBytes.length; j++) {
+				req[3 + filenameBytes.length + j] = modeBytes[j];
+			}
+
+			// 0 byte after mode bytes
+			req[3 + filenameBytes.length + modeBytes.length] = 3;
+			req[3 + filenameBytes.length + modeBytes.length + 1] = 4;
+			req[3 + filenameBytes.length + modeBytes.length + 2] = 5;
+		} else {
+			// read request
+			if (x % 2 == 0) {
+				// first two bytes are 0 and 1
+				req[0] = 0;
+				req[1] = 1;
+				System.out.println("[Client] Creating a read request");
+			} else { // read request
+				// first two bytes are 0 and 2
+				req[0] = 0;
+				req[1] = 2;
+				System.out.println("[Client] Creating a write request");
+
+			}
+			// adding the filename in bytes to request
+			for (int i = 0; i < filenameBytes.length; i++) {
+				req[2 + i] = filenameBytes[i];
+			}
+
+			// 0 byte after filename
+			req[2 + filenameBytes.length] = 0;
+
+			// adding the mode in bytes to request
+			for (int j = 0; j < modeBytes.length; j++) {
+				req[3 + filenameBytes.length + j] = modeBytes[j];
+			}
+
+			// 0 byte after mode bytes
+			req[3 + filenameBytes.length + modeBytes.length] = 0;
+		}
+		// send request to host
+	
+		
+		return req;
+
+	}
+
+	public void run() {
+		byte [] req;
+		for(int i = 0; i < MAX_REQUESTS; i++) {
+			 // create a request and send it to the host
+			req = createRequest(i);
+			System.out.println("[Client] Created Byte request: " + req);
+			System.out.println("[Client] Created String request: " + new String(req));
+			// send a request to the server for processed response data
+			rpcSend(req,PORT);
+		}
+ 
+        // close the socket
+		closeSocket();
+		System.out.println("[Client] Sockets closed!");
+    }
+
+	/**
+	 * main function
 	 * 
 	 * @param args
+	 * @throws IOException 
+	 * @throws UnknownHostException 
 	 */
 	public static void main(String[] args) {
 		// create client
 		Client client = new Client();
-
-		// send a read request
-		client.createRequest(1);
-
-		// receive response from server
-		client.receiveResponse();
-
-		// send a write request
-		client.createRequest(2);
-
-		// receive response from server
-		client.receiveResponse();
-
-		client.closeSocket();// closing client socket
+		client.run();
 	}
 
 }

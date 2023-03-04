@@ -16,10 +16,10 @@ import java.util.Arrays;
  * 
  *         Class for Server that sends responses to the intermediate host
  */
-public class Server {
-	private DatagramPacket sendPacket, receivePacket; // send and receive packets
-	private DatagramSocket receiveSocket; // receive sockets
+public class Server extends UDPEntity {
 	private final static int PORT = 69; // server port
+	private static int RECEIVE_PORT = 24; // port used for socket to receive from server
+
 
 	/*
 	 * server constructor
@@ -27,42 +27,8 @@ public class Server {
 	 * making sure socket is created successfully
 	 */
 	public Server() {
-		try {
-			receiveSocket = new DatagramSocket(PORT, InetAddress.getLocalHost());
-		} catch (SocketException e) {
-			e.printStackTrace();
-			System.exit(1);
-		} catch (UnknownHostException e1) {
-			e1.printStackTrace();
-			System.exit(1);
-		}
+		super(PORT);
 	}
-	
-	/**
-     * Function to send a packet to a specified address and port.
-     * 
-     * @param data The data to be sent
-     * @param address The destination IP address
-     * @param port The destination port number
-     * @throws IOException if an I/O error occurs
-     */
-    private void rpc_send(byte[] data, InetAddress address, int port) throws IOException {
-        try {
-			receiveSocket= new DatagramSocket();
-			sendPacket = new DatagramPacket(data, data.length, address, port);
-			receiveSocket.send(sendPacket);
-			 System.out.println("[Server] Sent (String) response: " + new String(sendPacket.getData()));
-		} catch (SocketException e) {
-			
-			e.printStackTrace();
-		} catch (IOException e) {
-			
-			e.printStackTrace();
-		}
-       
-        //sendSocket.close();
-    }
-
 
 	/*
 	 * run function
@@ -70,67 +36,78 @@ public class Server {
 	 * receives packet from host then sends response back to host
 	 */
 	private void run() throws Exception {
-		byte[] data = new byte[100];
-		receivePacket = new DatagramPacket(data, data.length);
-		// receiving packet from host
+		// send a request to the Host asking for data sent by client
+		rpcSend(RECEIVE_PORT);
+
+		// wait 1 second
 		try {
-			receiveSocket.receive(receivePacket);
-		} catch (IOException e) {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
 			e.printStackTrace();
+			System.exit(1);
 		}
-		byte[] req = receivePacket.getData();
 		String mode = "";
 		String filename = "";
+		byte[] req = new byte[getReceivePacket().getLength()];
+		System.arraycopy(getReceivePacket().getData(), 0, req, 0, getReceivePacket().getLength());
+	
 		// checking request validity
-		if (req[0] != 0) {
-			throw new Exception("[Server] this filename request format is invalid!");
-		}
-		if (req[1] != 2) {
-			throw new Exception("[Server] this filename request format is invalid!");
-		}
+		if (!new String(req).equals("DATA")) {
 
-		int i = 2;
-		while (data[i] != 0) {
-			filename += (char) data[i++];
-			if (i == req.length - 1) {
+			if (req[0] != 0) {
 				throw new Exception("[Server] this filename request format is invalid!");
 			}
-		}
+			if (req[1] != 1 && req[1] != 2) {
+				throw new Exception("[Server] this filename request format is invalid!");
+			}
 
-		if (filename.length() == 0) {
-			throw new Exception("[Server] this filename request format is invalid!");
-		}
+			int i = 2;
+			while (req[i] != 0) {
+				filename += (char) req[i++];
+				if (i == req.length - 1) {
+					throw new Exception("[Server] this filename request format is invalid!");
+				}
+			}
 
-		i++;
-		int start = i;
-		while (data[i] != 0) {
+			if (filename.length() == 0) {
+				throw new Exception("[Server] this filename request format is invalid!");
+			}
+
 			i++;
-			if (i == data.length - 1) {
+			int start = i;
+			while (req[i] != 0) {
+				i++;
+				if (i == req.length - 1) {
+					throw new Exception("[Server] this filename request format is invalid!");
+				}
+			}
+			mode = new String(req, start, i - start, StandardCharsets.US_ASCII);
+			if (!mode.equals("netascii") && !mode.equals("octet")) {
 				throw new Exception("[Server] this filename request format is invalid!");
 			}
 		}
-		mode = new String(data, start, i - start, StandardCharsets.US_ASCII);
-		if (!mode.equals("netascii") && !mode.equals("octet")) {
-			throw new Exception("[Server] this filename request format is invalid!");
-		}
-
-		System.out.println("[Server] Received Write(String) request: " + new String(req));
-		System.out.println("[Server] Received Write(byte) request: " + req);
+		System.out.println("[Server] Received (String) request: " + new String(req));
+		System.out.println("[Server] Received (byte) request: " + req);
 
 		// preparing the response
+		System.out.println("[Server] Preparing response");
 		byte[] res = new byte[4];
 		res[0] = 0;
-		res[1] = 4;
-		res[2] = 0;
-		res[3] = 0;
-		System.out.println("[Server] Sending (byte) response: " + Arrays.toString(res));
-		// sending the response to the host
-		InetAddress address = receivePacket.getAddress();
-		int port = receivePacket.getPort();
-	    rpc_send(res, address, port);
+		if (req[1] == 1) {// 301 for read
+			res[1] = 3;
+			res[2] = 0;
+			res[3] = 1;
+		} else if (req[1] == 2) {// 400 for write
+			res[1] = 4;
+			res[2] = 0;
+			res[3] = 0;
+		}
 
-		
-		
+		// send the response back to host
+
+		System.out.println("[Server] Sending (String) response: " + new String(res));
+		System.out.println("[Server] Sending (byte) response: " + Arrays.toString(res));
+		rpcSend(res, RECEIVE_PORT);
 		System.out.println();
 
 	}
@@ -138,14 +115,17 @@ public class Server {
 	/*
 	 * main function
 	 * 
-	 * creates a new instance of Server and runs the run function
 	 */
-	public static void main(String[] args) {
-	    Server server = new Server();
-	    try {
-	        server.run();
-	    } catch (Exception e) {
-	        e.printStackTrace();
-	    }
+	public static void main(String[] args) throws Exception {
+		Server server = new Server();
+		while (true) {
+			try {
+				server.run();
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.exit(1);
+
+			}
+		}
 	}
-	}
+}
