@@ -2,6 +2,15 @@ Justine Yap
 std #101180098
 assignment 3
 
+Questions
+1. Why did I suggest that you use more than one thread for the implementation of the Intermediate
+task?
+    - the Host can handle multiple client requests concurrently, which can improve the overall throughput and response time of the system.
+2.  Is it necessary to use synchronized in the intermediate task? Explain.
+    - Yes, it is necessary to use synchronized in the intermediate task to ensure thread safety and prevent race conditions. 
+    - The intermediate task is responsible for receiving requests from the client and forwarding them to the server, as well as receiving responses from the server and forwarding them to the client. 
+    - Since there are multiple threads involved in this process, there is a possibility that multiple threads may try to access and modify shared resources (such as the packet buffer or the output stream) concurrently, leading to synchronization issues.
+
 Important Files
 README.txt : explaining the names of all important files, set up instructions, etc
 assignment3 -> src : source folder that contains all java files and source code

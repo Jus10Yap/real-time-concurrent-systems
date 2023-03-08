@@ -1,13 +1,5 @@
 package assignment3;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.util.Arrays;
-
 /**
  * Client.java
  * 
@@ -27,6 +19,7 @@ public class Client extends UDPEntity {
 	 */
 	public Client() {
 		super();
+		System.out.println("[Client] Created Sockets");
 	}
 
 	/**
@@ -111,10 +104,12 @@ public class Client extends UDPEntity {
 		for(int i = 0; i < MAX_REQUESTS; i++) {
 			 // create a request and send it to the host
 			req = createRequest(i);
-			System.out.println("[Client] Created Byte request: " + req);
-			System.out.println("[Client] Created String request: " + new String(req));
+			System.out.println("[Client] Created (Byte) request #: "+ i+ " " + req);
+			System.out.println("[Client] Created (String) request#: "+ i + " " + new String(req));
 			// send a request to the server for processed response data
 			rpcSend(req,PORT);
+			
+			rpcSend(PORT);
 		}
  
         // close the socket
@@ -126,8 +121,6 @@ public class Client extends UDPEntity {
 	 * main function
 	 * 
 	 * @param args
-	 * @throws IOException 
-	 * @throws UnknownHostException 
 	 */
 	public static void main(String[] args) {
 		// create client

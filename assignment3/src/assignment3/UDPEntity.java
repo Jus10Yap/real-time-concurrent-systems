@@ -123,12 +123,13 @@ public class UDPEntity {
         System.out.println("[Server] Received Byte Request from Host: " + Arrays.toString(result));
         
 		// print packet information
+        System.out.println();
 		System.out.println("----- [PACKET INFO] -----");
 		System.out.println("[Address] " + receivePacket.getAddress());
 		System.out.println("[Port] " + receivePacket.getPort());
 		System.out.println("[Size] " + receivePacket.getLength());
-		System.out.println(new String(receivePacket.getData(), 0, receivePacket.getLength()));
-		
+		System.out.println("[Contents] " +new String(receivePacket.getData(), 0, receivePacket.getLength()));
+		System.out.println();
 		return result;
 	}
 
@@ -160,12 +161,14 @@ public class UDPEntity {
 		}
 
 		// print packet information
+		System.out.println();
 		System.out.println("----- [PACKET INFO] -----");
 		System.out.println("[Address] " + sendPacket.getAddress());
 		System.out.println("[Port] " + sendPacket.getPort());
 		System.out.println("[Size] " + sendPacket.getLength());
 		System.out.println("[Contents] " +new String(sendPacket.getData(), 0, sendPacket.getLength()));
-
+		System.out.println();
+		
 		// receive acknowledgement from the remote host
 		byte[] ack = new byte[12];
 		receivePacket = new DatagramPacket(ack, ack.length);
@@ -205,12 +208,14 @@ public class UDPEntity {
 			sendSocket.send(sendPacket);
 			System.out.println("[Host] Sent Acknowledgement");
 			// print packet information
+			System.out.println();
 			System.out.println("----- [PACKET INFO] -----");
 			System.out.println("[Address] " + sendPacket.getAddress());
 			System.out.println("[Port] " + sendPacket.getPort());
 			System.out.println("[Size] " + sendPacket.getLength());
-			System.out.println("[Contents] " +new String(sendPacket.getData(), 0, sendPacket.getLength()));
-
+			System.out.println("[Contents] " +new String(sendPacket.getData()));
+			System.out.println();
+			
 		} catch (IOException e) {
 			// Handle exception if there is an error sending the packet
 			e.printStackTrace();
@@ -227,11 +232,10 @@ public class UDPEntity {
 	 * @param data   the data to send
 	 * @param port   the port to send the data to
 	 * @param source the source port to receive acknowledgement
-	 * @return the received acknowledgement data
 	 * @throws UnknownHostException if the host is unknown
 	 * @throws IOException          if there is an error sending or receiving data
 	 */
-	public byte[] sendData(byte[] data, int port) {
+	public void sendData(byte[] data, int port) {
 		// Create and send a packet using sendSocket
 		try {
 			sendPacket = new DatagramPacket(data, data.length, InetAddress.getLocalHost(), port);
@@ -239,32 +243,22 @@ public class UDPEntity {
 			e.printStackTrace();
 			System.exit(1);
 		}
+		System.out.println();
 		System.out.println("----- [PACKET INFO] -----");
 		System.out.println("[Address] " + sendPacket.getAddress());
 		System.out.println("[Port] " + sendPacket.getPort());
 		System.out.println("[Size] " + sendPacket.getLength());
-		System.out.println(new String(sendPacket.getData(), 0, sendPacket.getLength()));
+		System.out.println("[Contents] " +new String(sendPacket.getData()));
+		System.out.println();
+		
 		try {
 			sendSocket.send(sendPacket);
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
-		// Receive acknowledgement from receiveSocket
-		byte[] ack = new byte[100];
-		receivePacket = new DatagramPacket(ack, ack.length);
-		try {
-			receiveSocket.receive(receivePacket);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		System.out.println("----- [PACKET INFO] -----");
-		System.out.println("[Address] " + receivePacket.getAddress());
-		System.out.println("[Port] " + receivePacket.getPort());
-		System.out.println("[Size] " + receivePacket.getLength());
-		System.out.println(new String(receivePacket.getData(), 0, receivePacket.getLength()));
-		return ack;
+		
+		
 	}
 
 	/**
@@ -279,13 +273,18 @@ public class UDPEntity {
 		try {
 			// Receive data from remote host
 			receiveSocket.receive(receivePacket);
+			byte[] result = new byte[receivePacket.getLength()];
+			System.arraycopy(data, 0, result, 0, receivePacket.getLength());
+			
+			System.out.println();
 			System.out.println("----- [PACKET INFO] -----");
 			System.out.println("[Address] " + receivePacket.getAddress());
 			System.out.println("[Port] " + receivePacket.getPort());
 			System.out.println("[Size] " + receivePacket.getLength());
-			System.out.println(new String(receivePacket.getData(), 0, receivePacket.getLength()));
-
-			return data;
+			System.out.println("[Contents] " +new String(receivePacket.getData(), 0, receivePacket.getLength()));
+			System.out.println("[Array] " + Arrays.toString(receivePacket.getData()));
+			System.out.println();
+			return result;
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.exit(1);
@@ -304,15 +303,22 @@ public class UDPEntity {
 	public byte[] receiveData(DatagramSocket socket) {
 		byte[] data = new byte[100];
 		DatagramPacket receivePacket = new DatagramPacket(data, data.length);
-
+		
 		try {
 			socket.receive(receivePacket);
+			byte[] result = new byte[receivePacket.getLength()];
+			System.arraycopy(data, 0, result, 0, receivePacket.getLength());
+			
+			System.out.println();
 			System.out.println("----- [PACKET INFO] -----");
 			System.out.println("[Address] " + receivePacket.getAddress());
 			System.out.println("[Port] " + receivePacket.getPort());
 			System.out.println("[Size] " + receivePacket.getLength());
-			System.out.println(new String(receivePacket.getData(), 0, receivePacket.getLength()));
-			return data;
+			System.out.println("[Contents] " + new String(receivePacket.getData(), 0, receivePacket.getLength()));
+			System.out.println("[Array] " + Arrays.toString(result));
+
+			System.out.println();
+			return result;
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.exit(1);

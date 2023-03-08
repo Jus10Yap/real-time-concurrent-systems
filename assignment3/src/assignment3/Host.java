@@ -1,11 +1,8 @@
 package assignment3;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
+
 
 /**
  * Host.java
@@ -46,8 +43,6 @@ public class Host extends UDPEntity implements Runnable {
 		req = receiveData();
 		// receiving request from client
 		int clientPort = getReceivePacket().getPort();
-		System.out.println(getReceivePacket().getPort());
-		System.out.println(getReceivePacket().getAddress());
 		System.out.println("[Host] Received Byte request from client: " + req);
 		System.out.println("[Host] Received String request from client: " + new String(req));
 
@@ -116,28 +111,27 @@ public class Host extends UDPEntity implements Runnable {
 		sendData(SEND_PORT_SERVER);
 	}
 
+	
+
 	/*
 	 * main method to execute
 	 */
 	public static void main(String[] args) {
 		Host host = new Host();
-		Thread client = new Thread(host, "Client");
-		client.start();
+		Thread clientThread = new Thread(host, "ClientThread");
+		clientThread.start();
 
 		while (true) {
-
 			host.handleServer();
-
 		}
 	}
 
 	@Override
 	public void run() {
+
 		while (true) {
-
 			handleClient();
-
 		}
-
 	}
+
 }

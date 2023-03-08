@@ -1,11 +1,6 @@
 package assignment3;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -28,6 +23,7 @@ public class Server extends UDPEntity {
 	 */
 	public Server() {
 		super(PORT);
+		System.out.println("[Server] Created Sockets");
 	}
 
 	/*
@@ -39,13 +35,7 @@ public class Server extends UDPEntity {
 		// send a request to the Host asking for data sent by client
 		rpcSend(RECEIVE_PORT);
 
-		// wait 1 second
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
+		
 		String mode = "";
 		String filename = "";
 		byte[] req = new byte[getReceivePacket().getLength()];
@@ -77,7 +67,8 @@ public class Server extends UDPEntity {
 			int start = i;
 			while (req[i] != 0) {
 				i++;
-				if (i == req.length - 1) {
+				
+				if (i == req.length) {
 					throw new Exception("[Server] this filename request format is invalid!");
 				}
 			}
@@ -86,8 +77,7 @@ public class Server extends UDPEntity {
 				throw new Exception("[Server] this filename request format is invalid!");
 			}
 		}
-		System.out.println("[Server] Received (String) request: " + new String(req));
-		System.out.println("[Server] Received (byte) request: " + req);
+		
 
 		// preparing the response
 		System.out.println("[Server] Preparing response");
@@ -104,10 +94,10 @@ public class Server extends UDPEntity {
 		}
 
 		// send the response back to host
-
-		System.out.println("[Server] Sending (String) response: " + new String(res));
-		System.out.println("[Server] Sending (byte) response: " + Arrays.toString(res));
 		rpcSend(res, RECEIVE_PORT);
+		System.out.println("[Server] Sent (String) processed response: " + new String(res));
+		System.out.println("[Server] Sent (byte) processed response: " + Arrays.toString(res));
+		
 		System.out.println();
 
 	}
